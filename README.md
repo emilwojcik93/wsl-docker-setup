@@ -11,7 +11,6 @@ A PowerShell script for managing and automating various WSL components, includin
   - [Installation](#installation)
   - [Usage](#usage)
     - [Usage without git.exe](#usage-without-gitexe)
-      - [Alternative codeblock](#alternative-codeblock)
   - [Scripts Overview](#scripts-overview)
     - [Test-Windows.ps1](#test-windowsps1)
     - [Install-CertificatesInWSL.ps1](#install-certificatesinwslps1)
@@ -63,7 +62,7 @@ Run the main setup script with the required parameters:
 1. Download the zip file via PowerShell to the user's Downloads folder:
     ```ps1
     $downloadDir = (Join-Path -Path $env:USERPROFILE -ChildPath "Downloads")
-    $downloadPath = (Join-Path -Path $downloadPath -ChildPath "wsl-docker-setup.zip")
+    $downloadPath = (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup.zip")
     Invoke-WebRequest -Uri "https://github.com/emilwojcik93/wsl-docker-setup/archive/refs/heads/main.zip" -OutFile $downloadPath
     ```
 
@@ -78,14 +77,15 @@ Run the main setup script with the required parameters:
     & ".\setup.ps1"
     ```
 
-#### Alternative codeblock
+    #### Alternative single codeblock
     ```ps1
     $downloadDir = (Join-Path -Path $env:USERPROFILE -ChildPath "Downloads")
-    $downloadPath = (Join-Path -Path $downloadPath -ChildPath "wsl-docker-setup.zip")
+    $downloadPath = (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup.zip")
     Invoke-WebRequest -Uri "https://github.com/emilwojcik93/wsl-docker-setup/archive/refs/heads/main.zip" -OutFile $downloadPath
     Expand-Archive -Path $downloadPath -DestinationPath "$downloadDir"
     cd (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup-main")
-    & ".\setup.ps1"
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+    & ".\setup.ps1" -Verbose
     ```
 
 ## Scripts Overview
