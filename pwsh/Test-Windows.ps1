@@ -55,7 +55,7 @@ function CheckAndAddToPath {
         $userPath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::User)
         if ($userPath -notmatch $pattern) {
             # Add the whole value of $exePath to the user PATH
-            [System.Environment]::SetEnvironmentVariable("Path", "$userPath;$exePath", [System.EnvironmentVariableTarget]::User)
+            [System.Environment]::SetEnvironmentVariable("Path", "$userPath`;$exePath", [System.EnvironmentVariableTarget]::User)
             Write-Output "Directory '$exePath' added to user PATH."
         } else {
             Write-Output "A directory containing '$pattern' is already in the user PATH."
@@ -69,8 +69,11 @@ function Test-WSL {
     if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
         return $false
     }
+    if (-not (Get-Command ubuntu.exe -ErrorAction SilentlyContinue)) {
+        return $false
+    }
     try {
-        $wslOutput = wsl -l -q | Where-Object { $_ -ne "" }
+        $wslOutput = wsl -l -q | Where {$_.Replace("`0","") -match '^Ubuntu'}
         if ($wslOutput) {
             return $true
         }
@@ -303,11 +306,11 @@ function InstallOrUpdate {
 }
 
 function Show-GreenCheckmark {
-    Write-Host -ForegroundColor Green "✔"
+    Write-Host -ForegroundColor Green "V"
 }
 
 function Show-RedCross {
-    Write-Host -ForegroundColor Red "✘"
+    Write-Host -ForegroundColor Red "x"
 }
 
 function Show-Separator {
@@ -321,7 +324,7 @@ function Add-Path {
 
     $currentPath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::User)
     if ($currentPath -notlike "*$path*") {
-        [System.Environment]::SetEnvironmentVariable("Path", "$currentPath;$path", [System.EnvironmentVariableTarget]::User)
+        [System.Environment]::SetEnvironmentVariable("Path", "$currentPath`;$path", [System.EnvironmentVariableTarget]::User)
     }
 }
 
@@ -381,7 +384,7 @@ function InstallOrUpdate-DockerCredentialHelper {
 
         # Configure Docker to use wincred.exe as the credential store
         Configure-DockerCredentialHelper
-    } catch {
+    } catch {`
         Write-Error "Failed to install or update docker-credential-wincred: $_"
         throw "Failed to install or update docker-credential-wincred."
     }
