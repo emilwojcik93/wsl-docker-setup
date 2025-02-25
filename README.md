@@ -46,9 +46,14 @@ This repository contains a set of PowerShell and Bash scripts designed to automa
 
 ## Usage
 
+Default exectuion
+```ps1
+& ".\setup.ps1"
+```
+
 Run the main setup script with the required parameters:
 ```ps1
-.\setup.ps1 -DescriptionPattern "CA" -DockerCredentialWincredPath "path\to\docker-credential-wincred.exe" -Verbose
+& ".\setup.ps1" -DescriptionPattern "CA" -DockerCredentialWincredPath "path\to\docker-credential-wincred.exe" -Verbose
 ```
 
 ## Scripts Overview
