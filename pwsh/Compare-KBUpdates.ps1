@@ -5,10 +5,6 @@
 .DESCRIPTION
     This script retrieves the latest installed KB ID along with the installation date and OS build version, fetches the remote KB IDs (excluding preview updates), and compares them. It checks if the currently installed KB/OS Build is updated or counts how many updates it is behind.
 
-.NOTES
-    Author: Your Name
-    Date: Today's Date
-
 .PARAMETER Verbose
     Optional parameter to write all details about retrieved data.
 
@@ -113,7 +109,7 @@ Function Compare-KBUpdates {
 
     # Get local installed KB ID and OS Build
     $localKBUpdate = Get-LatestKBUpdate
-    $localKB = "5043076"
+    $localKB = $localKBUpdate.KB
     $localOSBuild = $localKBUpdate.OSBuild
     $localDate = $localKBUpdate.Date
 

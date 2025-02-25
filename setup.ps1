@@ -193,11 +193,19 @@ Write-Output "In the event of any issues, detailed logs can be found at the foll
 Start-Sleep -Seconds 0
 
 # Collect parameters into a hashtable
-$args = @{
-    DescriptionPattern = $DescriptionPattern
-    $DockerCredentialWincredPath = $DockerCredentialWincredPath
-    SkipInitTest = $SkipInitTest
-    Verbose = $Verbose
+$args = @{}
+
+if ($PSBoundParameters.ContainsKey('DescriptionPattern')) {
+    $args['DescriptionPattern'] = $DescriptionPattern
+}
+if ($PSBoundParameters.ContainsKey('DockerCredentialWincredPath')) {
+    $args['DockerCredentialWincredPath'] = $DockerCredentialWincredPath
+}
+if ($PSBoundParameters.ContainsKey('SkipInitTest')) {
+    $args['SkipInitTest'] = $SkipInitTest
+}
+if ($PSBoundParameters.ContainsKey('Verbose')) {
+    $args['Verbose'] = $Verbose
 }
 
 # Call the main function
