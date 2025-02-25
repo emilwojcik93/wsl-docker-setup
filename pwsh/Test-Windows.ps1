@@ -500,6 +500,7 @@ function Validate-Windows {
         InstallOrUpdate-DockerCredentialHelper -DockerCredentialWincredPath $DockerCredentialWincredPath
     } catch {
         Write-Error "An error occurred: $_"
+        throw "An error occurred during the validation process."
     }
 }
 
