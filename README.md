@@ -87,6 +87,10 @@ Run the main setup script with the required parameters:
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
     & ".\setup.ps1" -Verbose
     ```
+    ### Different example of exectution
+    ```ps1
+    powershell.exe -File (Join-Path -Path $env:USERPROFILE -ChildPath "Downloads\wsl-docker-setup\setup.ps1") -DescriptionPattern 'Enterprise Root CA Subject CN Val' -DockerCredentialWincredPath (Join-Path -Path $env:UserProfile -ChildPath ".docker\docker-credential-wincred.exe") -Verbose
+    ```
 
 ## Scripts Overview
 
