@@ -160,12 +160,38 @@ install_docker() {
     # Create the override directory if it doesn't exist
     mkdir -p /etc/systemd/system/docker.service.d
     
-    echo Create the override.conf file
-    echo -e "[Service]\nExecStart=\nExecStart=$current_exec_start" > /etc/systemd/system/docker.service.d/override.conf
-
-    echo "Creating keepwsl.service..."
-    echo -e "[Unit]\nDescription=keepwsl.service\n\n[Service]\nExecStart=/mnt/c/Windows/System32/wsl.exe sleep infinity\n\n[Install]\nWantedBy=default.target" > /etc/systemd/system/keepwsl.service
-
+    override_conf_path="/etc/systemd/system/docker.service.d/override.conf"
+    override_conf_content="[Service]\nExecStart=\nExecStart=$current_exec_start"
+    
+    if [[ -f "$override_conf_path" ]]; then
+        existing_override_content=$(cat "$override_conf_path")
+        if [[ "$existing_override_content" == "$override_conf_content" ]]; then
+            echo "Docker override.conf is already configured correctly."
+        else
+            echo "Updating Docker override.conf with the correct configuration..."
+            echo -e "$override_conf_content" > "$override_conf_path"
+        fi
+    else
+        echo "Creating Docker override.conf..."
+        echo -e "$override_conf_content" > "$override_conf_path"
+    fi
+    
+    # Check if keepwsl.service already exists and contains the necessary configuration
+    keepwsl_service_path="/etc/systemd/system/keepwsl.service"
+    keepwsl_service_content="[Unit]\nDescription=keepwsl.service\n\n[Service]\nExecStart=/mnt/c/Windows/System32/wsl.exe sleep infinity\n\n[Install]\nWantedBy=default.target"
+    
+    if [[ -f "$keepwsl_service_path" ]]; then
+        existing_keepwsl_content=$(cat "$keepwsl_service_path")
+        if [[ "$existing_keepwsl_content" == "$keepwsl_service_content" ]]; then
+            echo "keepwsl.service is already configured correctly."
+        else
+            echo "Updating keepwsl.service with the correct configuration..."
+            echo -e "$keepwsl_service_content" > "$keepwsl_service_path"
+        fi
+    else
+        echo "Creating keepwsl.service..."
+        echo -e "$keepwsl_service_content" > "$keepwsl_service_path"
+    fi
     echo "Reloading systemd configuration..."
     systemctl daemon-reload
     

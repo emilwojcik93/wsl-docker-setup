@@ -185,7 +185,7 @@ function InstallOrUpdate-Winget {
             $localVersion = Get-LocalWingetVersion
             $latestVersion = Get-LatestWingetVersion
 
-            if ($null -eq $localVersion -or $null -eq $latestVersion -or $localVersion -lt $latestVersion) {
+            if ($null -eq $localVersion -or $null -eq $latestVersion -or ([Version]$localVersion -lt [Version]$latestVersion)) {
                 Write-Host "Updating WinGet..."
                 $updated = Update-Winget-Asheroto-Method
                 if (-not $updated) {
@@ -226,15 +226,15 @@ function Configure-DockerCredentialHelper {
         }
 
         # Add or update the credsStore property if not already set to wincred
-        if ($null -eq $config.credsStore -or $config.credsStore -ne "wincred.exe") {
-            $config.credsStore = "wincred.exe"
+        if ($null -eq $config.credsStore -or $config.credsStore -ne "wincred") {
+            $config | Add-Member -MemberType NoteProperty -Name "credsStore" -Value "wincred" -Force
 
             # Write the updated JSON back to the config.json file
             $config | ConvertTo-Json -Depth 10 | Set-Content -Path $configPath
 
-            Write-Output "Configured Docker to use wincred.exe as the credential store."
+            Write-Output "Configured Docker to use wincred as the credential store."
         } else {
-            Write-Output "Docker is already configured to use wincred.exe as the credential store."
+            Write-Output "Docker is already configured to use wincred as the credential store."
         }
 
         Write-Output "Content of Docker config file:"
@@ -306,11 +306,11 @@ function InstallOrUpdate {
 }
 
 function Show-GreenCheckmark {
-    Write-Host -ForegroundColor Green "V"
+    Write-Host -ForegroundColor Green "OK"
 }
 
 function Show-RedCross {
-    Write-Host -ForegroundColor Red "x"
+    Write-Host -ForegroundColor Red "BAD"
 }
 
 function Show-Separator {

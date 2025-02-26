@@ -38,8 +38,17 @@ $installGCM = "./bash/Install-GCM.sh"
 
 # Function to validate Windows
 function Test-Windows {
+    param (
+        [string]$DockerCredentialWincredPath,
+        [switch]$SkipInitTest
+    )
     Write-Output "Running Test-Windows.ps1..."
-    & $testWindows
+    Write-Verbose "DockerCredentialWincredPath: $DockerCredentialWincredPath"
+    $params = @{}
+    if ($PSBoundParameters.ContainsKey('DockerCredentialWincredPath')) {
+        $params['DockerCredentialWincredPath'] = $DockerCredentialWincredPath
+    }
+    & $testWindows @params
     if ($LASTEXITCODE -ne 0) {
         Write-Output "Error: Test-Windows.ps1 failed."
         throw "Test-Windows.ps1 failed."

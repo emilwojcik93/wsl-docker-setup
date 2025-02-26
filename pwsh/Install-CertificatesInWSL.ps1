@@ -317,11 +317,24 @@ function Main {
     
         # Check if all tests are successful
         if ($success) {
-            Write-Error -Message "The current test was successful, indicating that WSL can properly make TLS connections. 
-            Please ensure that there are no conditions that could lead to WSL TLS connections misbehaving, such as:
-            - Zscaler is unauthenticated
-            - You are connected via an untrusted network that should use a CA certificate
-            - Any other unfavorable conditions for WSL TLS connections"
+            $installedCerts = wsl -d $WSLDistro -u root -e bash -c "ls -1 ${certPath}"
+        
+            Write-Warning -Message @"
+The current test was SUCCESSFUL, indicating that WSL can properly make TLS connections.
+No certificates were installed during this process.
+
+Please ensure that there are no conditions that could lead to WSL TLS connections misbehaving, such as:
+- Zscaler is unauthenticated
+- You are connected via an untrusted network that should use a CA certificate
+- Any other unfavorable conditions for WSL TLS connections
+
+Currently installed custom CA certificates in WSL:
+$installedCerts
+
+Alternatively, you may provide the argument "SkipInitTest" to skip the initial test and proceed directly to the certificate installation process. However, please note that this might result in the installation of an incorrect certificate, as WSL already has access to TLS connections.
+
+Please review the above information carefully to ensure the proper configuration of your WSL environment.
+"@
             return
         }
     }

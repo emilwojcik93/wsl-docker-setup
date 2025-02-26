@@ -61,7 +61,6 @@ Function Get-LatestKBUpdate {
 }
 
 Function Get-RemoteKBUpdates {
-
     # Fetch the content from the Windows Update History URL
     $uri = "https://aka.ms/WindowsUpdateHistory"
     $response = Invoke-WebRequest -Uri $uri -UseBasicParsing -ErrorAction Stop
@@ -72,34 +71,59 @@ Function Get-RemoteKBUpdates {
     # Filter the links to include only those that match "supLeftNavLink" and contain "KB", and exclude those that contain "Preview"
     $filteredLinks = $links | Where-Object { $_.outerHTML -match "supLeftNavLink" -and $_.outerHTML -match "KB" -and $_.outerHTML -notmatch "Preview" }
 
-    # Extract KB IDs and OS Builds
+    # Extract KB IDs and raw details
     $kbList = $filteredLinks | ForEach-Object {
         if ($_.outerHTML -match "OS Builds") {
-            $dateString = $_.outerHTML.Split('>')[1].Split('&#x2014;')[0].Trim()
-            $dateFormats = @("MMMM d, yyyy", "MMMM dd, yyyy", "MMMM d, yyyy h:mm tt", "MMMM dd, yyyy h:mm tt")
-            $parsedDate = $null
-            foreach ($format in $dateFormats) {
-                try {
-                    $parsedDate = [datetime]::ParseExact($dateString, $format, $null)
-                    break
-                } catch {}
-            }
-            if ($parsedDate -eq $null) {
-                Write-Error "Failed to parse date string: $dateString"
-            }
             [PSCustomObject]@{
-                KB = $_.href.Split('/')[-1]
-                OSBuilds = $_.outerHTML.Split('OS Builds ')[1].Split(')')[0].Split(' and ')
-                Date = $parsedDate
+                RawDetails = $_.outerHTML
             }
         }
     }
 
-    # Remove duplicate entries
-    $uniqueKBList = $kbList | Sort-Object KB, Date -Unique
+    # Return the raw KB list
+    return $kbList
+}
 
-    # Return the KB list
-    return $uniqueKBList | Sort-Object Date -Descending
+Function Parse-KBDetails {
+    param (
+        [string]$rawDetails
+    )
+
+    $kb = $null
+    $osBuilds = $null
+    $date = $null
+
+    # Extract KB ID
+    if ($rawDetails -match "KB[0-9]+") {
+        $kb = $matches[0]
+    }
+
+    # Extract OS Builds
+    if ($rawDetails -match "OS Builds ([^<]+)") {
+        $osBuilds = $matches[1] -split " and "
+    }
+
+    # Extract Date
+    if ($rawDetails -match ">([^<]+)&#x2014;") {
+        $dateString = $matches[1].Trim()
+        $parsedDate = $null
+        $dateFormats = @("MMMM d, yyyy", "MMMM dd, yyyy", "MMMM d, yyyy h:mm tt", "MMMM dd, yyyy h:mm tt", "MMMM d", "MMMM dd", "MMMM", "MMMM yyyy")
+        foreach ($format in $dateFormats) {
+            try {
+                $parsedDate = [datetime]::ParseExact($dateString, $format, $null)
+                break
+            } catch {
+                continue
+            }
+        }
+        $date = $parsedDate
+    }
+
+    return [PSCustomObject]@{
+        KB = $kb
+        OSBuilds = $osBuilds
+        Date = $date
+    }
 }
 
 Function Compare-KBUpdates {
@@ -115,6 +139,7 @@ Function Compare-KBUpdates {
 
     # Get remote KB IDs and OS Builds
     $remoteKBList = Get-RemoteKBUpdates
+    $parsedKBList = $remoteKBList | ForEach-Object { Parse-KBDetails -rawDetails $_.RawDetails }
 
     if ($Verbose) {
         Write-Output "Local KB Update: $($localKBUpdate.Output)"
@@ -123,34 +148,34 @@ Function Compare-KBUpdates {
         Write-Output "Local KB Date: $($localKBUpdate.Date.ToString('MM/dd/yyyy'))"
         Write-Output "----------------------"
         Write-Output "Remote KB List:"
-        $remoteKBList | ForEach-Object { Write-Output $_ }
+        $parsedKBList | ForEach-Object { Write-Output $_ }
         Write-Output "----------------------"
     }
 
     # Find the index of the local KB in the remote KB list
-    $localKBIndex = $remoteKBList.KB.IndexOf($localKB)
+    $localKBIndex = $parsedKBList.KB.IndexOf($localKB)
     if ($localKBIndex -ge 0) {
         $updatesBehind = $localKBIndex
         if ($Verbose) {
             Write-Output "Local KB is up to date with the latest remote KB."
             Write-Output "Days behind: 0"
-            Write-Output "Latest remote KB Update: $($remoteKBList[0].KB) (OS Builds $($remoteKBList[0].OSBuilds -join ', '))"
-            Write-Output "Latest remote KB ID: $($remoteKBList[0].KB)"
-            Write-Output "Latest remote OS Build: $($remoteKBList[0].OSBuilds -join ', ')"
-            Write-Output "Latest remote KB Date: $($remoteKBList[0].Date.ToString('MM/dd/yyyy'))"
+            Write-Output "Latest remote KB Update: $($parsedKBList[0].KB) (OS Builds $($parsedKBList[0].OSBuilds -join ', '))"
+            Write-Output "Latest remote KB ID: $($parsedKBList[0].KB)"
+            Write-Output "Latest remote OS Build: $($parsedKBList[0].OSBuilds -join ', ')"
+            Write-Output "Latest remote KB Date: $($parsedKBList[0].Date.ToString('MM/dd/yyyy'))"
         }
         return $updatesBehind
     }
 
     # If local KB is not found, calculate how many updates it is behind
-    $updatesBehind = ($remoteKBList | Where-Object { $_.Date -gt $localDate }).Count
+    $updatesBehind = ($parsedKBList | Where-Object { $_.Date -gt $localDate }).Count
     if ($Verbose) {
         Write-Output "Local KB is behind the latest remote KB by $updatesBehind updates."
         Write-Output "Days behind: $($updatesBehind)"
-        Write-Output "Latest remote KB Update: $($remoteKBList[0].KB) (OS Builds $($remoteKBList[0].OSBuilds -join ', '))"
-        Write-Output "Latest remote KB ID: $($remoteKBList[0].KB)"
-        Write-Output "Latest remote OS Build: $($remoteKBList[0].OSBuilds -join ', ')"
-        Write-Output "Latest remote KB Date: $($remoteKBList[0].Date.ToString('MM/dd/yyyy'))"
+        Write-Output "Latest remote KB Update: $($parsedKBList[0].KB) (OS Builds $($parsedKBList[0].OSBuilds -join ', '))"
+        Write-Output "Latest remote KB ID: $($parsedKBList[0].KB)"
+        Write-Output "Latest remote OS Build: $($parsedKBList[0].OSBuilds -join ', ')"
+        Write-Output "Latest remote KB Date: $($parsedKBList[0].Date.ToString('MM/dd/yyyy'))"
     }
     return $updatesBehind
 }
