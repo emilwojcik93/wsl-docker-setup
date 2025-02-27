@@ -187,7 +187,7 @@ function InstallOrUpdate-Winget {
     function Main {
         try {
             if ($Force) {
-                Write-Host "Forcing update of WinGet using the Asheroto method..."
+                Write-Host "Forcing update of WinGet..."
                 $updated = Update-Winget-Manual-Method
                 if (-not $updated) {
                     $updated = Update-Winget-MSStore-Method
