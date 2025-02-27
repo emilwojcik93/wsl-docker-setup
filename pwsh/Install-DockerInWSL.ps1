@@ -76,11 +76,46 @@ function Reload-EnvVars {
     }
 }
 
+# Function to find the path of gh.exe using find
+function Find-Executable {
+    param (
+        [string]$exeName
+    )
+
+    $searchPaths = @(
+        (Join-Path -Path "${env:LocalAppData}" -ChildPath "Microsoft\WinGet\Packages"),
+        "${env:ProgramW6432}",
+        "${env:ProgramFiles(x86)}"
+    )
+
+    foreach ($path in $searchPaths) {
+        $exePath = Get-ChildItem -Path $path -Recurse -Filter $exeName -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        if ($exePath) {
+            $exeDir = Split-Path -Parent $exePath
+            $userPath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::User)
+            if ($userPath -notlike "*$exeDir*") {
+                [System.Environment]::SetEnvironmentVariable("Path", "$userPath`;$exeDir", [System.EnvironmentVariableTarget]::User)
+            }
+            return $exePath
+        }
+    }
+
+    throw "$exeName not found in common locations. Please ensure it is installed."
+}
+
+Write-Output "Searching for docker-compose.exe in common locations..."
+$dockerComposePath = Find-Executable -exeName "docker-compose.exe"
+Write-Output "Found docker-compose.exe at: $dockerComposePath"
+
+Write-Output "Searching for docker.exe in common locations..."
+$dockerPath = Find-Executable -exeName "docker.exe"
+Write-Output "Found docker.exe at: $dockerPath"
+
 function Find-DockerExecutable {
     $searchPaths = @(
-        Join-Path -Path "${env:LocalAppData}" -ChildPath "Microsoft\WinGet\Packages"
-        Join-Path -Path "${env:ProgramW6432}" -ChildPath "Docker"
-        Join-Path -Path "${env:ProgramFiles(x86)}" -ChildPath "Docker"
+        (Join-Path -Path "${env:LocalAppData}" -ChildPath "Microsoft\WinGet\Packages"),
+        (Join-Path -Path "${env:ProgramW6432}" -ChildPath "Docker"),
+        (Join-Path -Path "${env:ProgramFiles(x86)}" -ChildPath "Docker")
     )
 
     foreach ($path in $searchPaths) {
@@ -100,7 +135,7 @@ $dockerPath = Find-DockerExecutable
 # Test if Docker CLI can access WSL Docker socket
 function Test-DockerCLI {
     Write-Output "Testing if Docker CLI can access WSL Docker socket..."
-    $dockerInfo = docker.exe info 2>&1 | Out-String
+    $dockerInfo = & $dockerPath info 2>&1 | Out-String
     $dockerInfo = $dockerInfo -replace "(?s)\[DEPRECATION NOTICE\].*?(?=\n\n|\z)", ""
     $dockerInfo = $dockerInfo -replace "(?s)WARNING:.*?(?=\n\n|\z)", ""
 

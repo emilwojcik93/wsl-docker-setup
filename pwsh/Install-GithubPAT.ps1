@@ -6,27 +6,36 @@ $packages = @(
 )
 
 # Function to find the path of gh.exe using find
-function Find-GhExecutable {
-    $searchPaths = @(
-        Join-Path -Path "${env:LocalAppData}" -ChildPath "Microsoft\WinGet\Packages"
-        Join-Path -Path "${env:ProgramW6432}" -ChildPath "GitHub CLI"
-        Join-Path -Path "${env:ProgramFiles(x86)}" -ChildPath "GitHub CLI"
+function Find-Executable {
+    param (
+        [string]$exeName
     )
 
+    $searchPaths = @(
+        (Join-Path -Path "${env:LocalAppData}" -ChildPath "Microsoft\WinGet\Packages"),
+        "${env:ProgramW6432}",
+        "${env:ProgramFiles(x86)}"
+    )
 
     foreach ($path in $searchPaths) {
-        $ghPath = Get-ChildItem -Path $path -Recurse -Filter "gh.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-        if ($ghPath) {
-            return $ghPath
+        $exePath = Get-ChildItem -Path $path -Recurse -Filter $exeName -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        if ($exePath) {
+            $exeDir = Split-Path -Parent $exePath
+            $userPath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::User)
+            if ($userPath -notlike "*$exeDir*") {
+                [System.Environment]::SetEnvironmentVariable("Path", "$userPath`;$exeDir", [System.EnvironmentVariableTarget]::User)
+            }
+            return $exePath
         }
     }
 
-    throw "gh.exe not found in common locations. Please ensure GitHub CLI is installed."
+    throw "$exeName not found in common locations. Please ensure it is installed."
 }
 
 Write-Output "Searching for gh.exe in common locations..."
 # Find the gh executable path
-$ghPath = Find-GhExecutable
+$ghPath = Find-Executable -exeName "gh.exe"
+Write-Output "Found gh.exe at: $ghPath"
 
 
 function Check-Package-Availability {
