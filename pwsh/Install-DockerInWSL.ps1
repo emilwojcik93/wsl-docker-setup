@@ -111,27 +111,6 @@ Write-Output "Searching for docker.exe in common locations..."
 $dockerPath = Find-Executable -exeName "docker.exe"
 Write-Output "Found docker.exe at: $dockerPath"
 
-function Find-DockerExecutable {
-    $searchPaths = @(
-        (Join-Path -Path "${env:LocalAppData}" -ChildPath "Microsoft\WinGet\Packages"),
-        (Join-Path -Path "${env:ProgramW6432}" -ChildPath "Docker"),
-        (Join-Path -Path "${env:ProgramFiles(x86)}" -ChildPath "Docker")
-    )
-
-    foreach ($path in $searchPaths) {
-        $dockerPath = Get-ChildItem -Path $path -Recurse -Filter "docker.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-        if ($dockerPath) {
-            return $dockerPath
-        }
-    }
-
-    throw "docker.exe not found in common locations. Please ensure Docker CLI is installed."
-}
-
-Write-Output "Searching for docker.exe in common locations..."
-# Find the docker executable path
-$dockerPath = Find-DockerExecutable
-
 # Test if Docker CLI can access WSL Docker socket
 function Test-DockerCLI {
     Write-Output "Testing if Docker CLI can access WSL Docker socket..."
