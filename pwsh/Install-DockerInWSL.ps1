@@ -83,8 +83,6 @@ function Find-DockerExecutable {
         Join-Path -Path "${env:ProgramFiles(x86)}" -ChildPath "Docker"
     )
 
-    Write-Output "Searching for docker.exe in common locations..."
-
     foreach ($path in $searchPaths) {
         $dockerPath = Get-ChildItem -Path $path -Recurse -Filter "docker.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
         if ($dockerPath) {
@@ -95,6 +93,8 @@ function Find-DockerExecutable {
     throw "docker.exe not found in common locations. Please ensure Docker CLI is installed."
 }
 
+Write-Output "Searching for docker.exe in common locations..."
+# Find the docker executable path
 $dockerPath = Find-DockerExecutable
 
 # Test if Docker CLI can access WSL Docker socket

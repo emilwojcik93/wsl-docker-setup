@@ -13,7 +13,6 @@ function Find-GhExecutable {
         Join-Path -Path "${env:ProgramFiles(x86)}" -ChildPath "GitHub CLI"
     )
 
-    Write-Output "Searching for gh.exe in common locations..."
 
     foreach ($path in $searchPaths) {
         $ghPath = Get-ChildItem -Path $path -Recurse -Filter "gh.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
@@ -25,6 +24,7 @@ function Find-GhExecutable {
     throw "gh.exe not found in common locations. Please ensure GitHub CLI is installed."
 }
 
+Write-Output "Searching for gh.exe in common locations..."
 # Find the gh executable path
 $ghPath = Find-GhExecutable
 
