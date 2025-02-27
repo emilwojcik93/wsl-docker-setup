@@ -8,10 +8,12 @@ $packages = @(
 # Function to find the path of gh.exe using find
 function Find-GhExecutable {
     $searchPaths = @(
-        "$env:ProgramFiles\GitHub CLI",
-        "$env:ProgramFiles (x86)\GitHub CLI",
-        "$env:LOCALAPPDATA\GitHub CLI"
+        Join-Path -Path "${env:LocalAppData}" -ChildPath "Microsoft\WinGet\Packages"
+        Join-Path -Path "${env:ProgramW6432}" -ChildPath "GitHub CLI"
+        Join-Path -Path "${env:ProgramFiles(x86)}" -ChildPath "GitHub CLI"
     )
+
+    Write-Output "Searching for gh.exe in common locations..."
 
     foreach ($path in $searchPaths) {
         $ghPath = Get-ChildItem -Path $path -Recurse -Filter "gh.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
