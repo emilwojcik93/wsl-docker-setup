@@ -42,7 +42,7 @@ function Reload-EnvVars {
 
 function CheckAndAddToPath {
     param (
-        [string]$basePath = "C:\Users\6125750\AppData\Local\Microsoft\WinGet\Packages",
+        [string]$basePath = (Join-Path -Path $env:UserProfile -ChildPath "AppData\Local\Microsoft\WinGet\Packages"),
         [string]$exeName,
         [string]$pattern
     )
@@ -84,7 +84,9 @@ function Test-WSL {
 
 function InstallOrUpdate-Winget {
     [CmdletBinding()]
-    param()
+    param (
+        [switch]$Force
+    )
 
     <#
     .SYNOPSIS
@@ -123,7 +125,7 @@ function InstallOrUpdate-Winget {
     function Update-Winget-Asheroto-Method {
         try {
             Write-Host "Attempting to update WinGet using the Asheroto method..."
-            $result = Start-Process -FilePath "powershell.exe" -ArgumentList "-Command &([ScriptBlock]::Create((irm https://github.com/asheroto/winget-install/releases/latest/download/winget-install.ps1))) -Force" -Wait -NoNewWindow -PassThru -Timeout 300
+            $result = Start-Process -FilePath "powershell.exe" -ArgumentList "-Command &([ScriptBlock]::Create((irm https://github.com/asheroto/winget-install/releases/latest/download/winget-install.ps1))) -Force" -Wait -NoNewWindow -PassThru
             if ($result.ExitCode -ne 0) {
                 throw "Asheroto method failed with exit code: $($result.ExitCode)"
             }
@@ -138,7 +140,7 @@ function InstallOrUpdate-Winget {
     function Update-Winget-MSStore-Method {
         try {
             Write-Host "Attempting to update WinGet using the Microsoft Store..."
-            $result = Start-Process -FilePath "powershell.exe" -ArgumentList "-Command winget install --id Microsoft.Winget --accept-source-agreements --accept-package-agreements Microsoft.AppInstaller" -Wait -NoNewWindow -PassThru -Timeout 300
+            $result = Start-Process -FilePath "powershell.exe" -ArgumentList "-Command winget install --id Microsoft.AppInstaller -e --accept-source-agreements --accept-package-agreements" -Wait -NoNewWindow -PassThru
             if ($result.ExitCode -ne 0) {
                 throw "Microsoft Store method failed with exit code: $($result.ExitCode)"
             }
@@ -182,11 +184,8 @@ function InstallOrUpdate-Winget {
     # Main function logic
     function Main {
         try {
-            $localVersion = Get-LocalWingetVersion
-            $latestVersion = Get-LatestWingetVersion
-
-            if ($null -eq $localVersion -or $null -eq $latestVersion -or ([Version]$localVersion -lt [Version]$latestVersion)) {
-                Write-Host "Updating WinGet..."
+            if ($Force) {
+                Write-Host "Forcing update of WinGet using the Asheroto method..."
                 $updated = Update-Winget-Asheroto-Method
                 if (-not $updated) {
                     $updated = Update-Winget-MSStore-Method
@@ -195,7 +194,21 @@ function InstallOrUpdate-Winget {
                     }
                 }
             } else {
-                Write-Host "WinGet is up to date (version $localVersion)."
+                $localVersion = Get-LocalWingetVersion
+                $latestVersion = Get-LatestWingetVersion
+
+                if ($null -eq $localVersion -or $null -eq $latestVersion -or ([Version]$localVersion -lt [Version]$latestVersion)) {
+                    Write-Host "Updating WinGet..."
+                    $updated = Update-Winget-Asheroto-Method
+                    if (-not $updated) {
+                        $updated = Update-Winget-MSStore-Method
+                        if (-not $updated) {
+                            Update-Winget-Manual-Method
+                        }
+                    }
+                } else {
+                    Write-Host "WinGet is up to date (version $localVersion)."
+                }
             }
         } catch {
             Write-Error "An error occurred during the update process: $_"
@@ -271,7 +284,7 @@ function Get-LatestVersion {
         [string]$packageId
     )
 
-    $versions = winget show $packageId --versions | Select-String -Pattern '^\d' | ForEach-Object { $_.Line }
+    $versions = winget show $packageId --versions --accept-source-agreements | Select-String -Pattern '^\d' | ForEach-Object { $_.Line }
     return $versions[0]
 }
 
@@ -390,7 +403,6 @@ function InstallOrUpdate-DockerCredentialHelper {
     }
 }
 
-
 function Validate-Windows {
     param (
         [string]$DockerCredentialWincredPath
@@ -398,6 +410,12 @@ function Validate-Windows {
 
     try {
         Show-Separator
+
+        # Force run the Asheroto script to ensure winget is working properly
+        Write-Output "Forcing update of WinGet using the Asheroto method..."
+        InstallOrUpdate-Winget -Force
+        Show-Separator
+
         # Check if WSL is available
         if (-not (Test-WSL)) {
             Show-RedCross
@@ -440,6 +458,7 @@ function Validate-Windows {
 
         # Check each executable
         foreach ($executable in $executables) {
+            Write-Output "Checking $executable..."
             $command = Get-Command $executable -ErrorAction SilentlyContinue
             if ($command) {
                 if ($executable -notin @("wsl.exe", "ubuntu.exe")) {

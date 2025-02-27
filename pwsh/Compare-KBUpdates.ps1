@@ -23,40 +23,90 @@ param (
     [switch]$Verbose
 )
 
+Function Get-MyWindowsVersion {
+    [CmdletBinding()]
+    Param (
+        $ComputerName = $env:COMPUTERNAME
+    )
+
+    $Table = New-Object System.Data.DataTable
+    $Table.Columns.AddRange(@("ComputerName","Windows edition","Version","Build number"))
+    $ProductName = Get-CimInstance -ClassName Win32_OperatingSystem -Property Caption | Select -ExpandProperty Caption
+    Try {
+        $DisplayVersion = (Get-ItemPropertyValue 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name DisplayVersion -ErrorAction Stop)
+    } Catch {
+        $DisplayVersion = "N/A"
+    }
+    $CurrentBuild = Get-ItemPropertyValue 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name CurrentBuild
+    $UBR = Get-ItemPropertyValue 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name UBR
+    $OSVersion = $CurrentBuild + "." + $UBR
+    $TempTable = New-Object System.Data.DataTable
+    $TempTable.Columns.AddRange(@("ComputerName","Windows edition","Version","Build number"))
+    [void]$TempTable.Rows.Add($env:COMPUTERNAME,$ProductName,$DisplayVersion,$OSVersion)
+
+    return $TempTable
+}
+
 Function Get-LatestKBUpdate {
-    # Define the regex pattern to match the KB ID
-    $regex = "(KB[0-9]*)"
+    try {
+        # Get Windows info
+        $CurrentWindowsVersion = Get-MyWindowsVersion -ErrorAction Stop
 
-    # Create an update session and searcher
-    $Session = New-Object -ComObject "Microsoft.Update.Session"
-    $Searcher = $Session.CreateUpdateSearcher()
+        # Set the correct URL for W11 or W10
+        If ($CurrentWindowsVersion.'Build number' -like "2*") {
+            $URI = "https://aka.ms/Windows11UpdateHistory"
+        }
+        If ($CurrentWindowsVersion.'Build number' -like "1*") {
+            $URI = "https://support.microsoft.com/en-gb/topic/windows-10-update-history-7dd3071a-3906-fa2c-c342-f7f86728a6e3"
+        }
 
-    # Get the total number of updates in the history
-    $historyCount = $Searcher.GetTotalHistoryCount()
+        # Retrieve the web pages
+        If ($PSVersionTable.PSVersion.Major -ge 6) {
+            $Response = Invoke-WebRequest -Uri $URI -ErrorAction Stop
+        } else {
+            $Response = Invoke-WebRequest -Uri $URI -UseBasicParsing -ErrorAction Stop
+        }
 
-    # Query the update history, filter updates with KB IDs, sort by date, and select the latest one
-    $latestUpdate = $Searcher.QueryHistory(0, $historyCount) |
-        Where-Object { $_.Title -match $regex } |
-        Sort-Object Date -Descending |
-        Select-Object -First 1
+        # Pull the version data from the HTML
+        If (!($Response.Links)) { throw "Response was not parsed as HTML" }
+        $VersionDataRaw = $Response.Links | where {$_.outerHTML -match "supLeftNavLink" -and $_.outerHTML -match "KB"}
 
-    # Extract the KB ID from the title
-    $kb = ($latestUpdate.Title | Select-String -Pattern $regex).Matches.Groups[1].Value
+        # Get the latest patch info
+        $CurrentPatch = $VersionDataRaw | where {$_.outerHTML -match $CurrentWindowsVersion.'Build number'} | Select -First 1
 
-    # Format the date
-    $date = $latestUpdate.Date.ToString("MMMM dd, yyyy")
+        # Extract the KB ID from the title
+        $kb = "KB" + $CurrentPatch.href.Split('/')[-1]
 
-    # Get the OS build version
-    $osBuild = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').CurrentBuild + "." +
-               (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').UBR
+        # Format the date
+        $dateString = $CurrentPatch.outerHTML.Split('>')[1].Replace('</a','').Replace('&#x2014;',' - ')
+        $date = $null
+        $dateFormats = @("MMMM d, yyyy", "MMMM dd, yyyy", "MMMM d, yyyy h:mm tt", "MMMM dd, yyyy h:mm tt", "MMMM d", "MMMM dd", "MMMM", "MMMM yyyy")
+        foreach ($format in $dateFormats) {
+            try {
+                $date = [datetime]::ParseExact($dateString.Split(' - ')[0], $format, $null)
+                break
+            } catch {
+                continue
+            }
+        }
+        if ($null -eq $date) {
+            throw "Failed to parse date: $dateString"
+        }
 
-    # Format the output
-    $output = "$date - $kb (OS Builds $osBuild)"
-    return [PSCustomObject]@{
-        Output = $output
-        KB = $kb
-        OSBuild = $osBuild
-        Date = $latestUpdate.Date
+        # Get the OS build version
+        $osBuild = $CurrentWindowsVersion.'Build number'
+
+        # Format the output
+        $output = "$dateString (OS Builds $osBuild)"
+        return [PSCustomObject]@{
+            Output = $output
+            KB = $kb
+            OSBuild = $osBuild
+            Date = $date
+        }
+    } catch {
+        Write-Error "Failed to retrieve the latest KB update: $_"
+        return $null
     }
 }
 
@@ -133,6 +183,9 @@ Function Compare-KBUpdates {
 
     # Get local installed KB ID and OS Build
     $localKBUpdate = Get-LatestKBUpdate
+    if ($null -eq $localKBUpdate) {
+        return
+    }
     $localKB = $localKBUpdate.KB
     $localOSBuild = $localKBUpdate.OSBuild
     $localDate = $localKBUpdate.Date

@@ -9,21 +9,52 @@ if ($Verbose) {
     $VerbosePreference = "Continue"
 }
 
-$executionPolicies = Get-ExecutionPolicy -List
-$currentUserPolicy = $executionPolicies | Where-Object { $_.Scope -eq 'CurrentUser' }
-$processPolicy = $executionPolicies | Where-Object { $_.Scope -eq 'Process' }
-$localMachinePolicy = $executionPolicies | Where-Object { $_.Scope -eq 'LocalMachine' }
-if ($currentUserPolicy.ExecutionPolicy -ne 'Bypass') {
-    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Bypass -Force
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Output "This script needs to be run as Administrator. Attempting to relaunch."
+    $argList = @()
+
+    $PSBoundParameters.GetEnumerator() | ForEach-Object {
+        $argList += if ($_.Value -is [switch] -and $_.Value) {
+            "-$($_.Key)"
+        } elseif ($_.Value) {
+            "-$($_.Key) '$($_.Value)'"
+        }
+    }
+    
+    $script = if ($PSCommandPath) {
+        "& { & `"$($PSCommandPath)`" $($argList -join ' ') }"
+    } else {
+        "&([ScriptBlock]::Create((irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/refs/heads/main/setup.ps1))) $($argList -join ' ')"
+    }
+    
+    $powershellcmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
+    $processCmd = if (Get-Command wt.exe -ErrorAction SilentlyContinue) { "wt.exe" } else { $powershellcmd }
+
+    
+    Start-Process $processCmd -ArgumentList "$powershellcmd -ExecutionPolicy Bypass -NoProfile -Command `"$script`"" -Verb RunAs
+
+    break
+} else {
+    # Check and set execution policy for CurrentUser, Process, and LocalMachine
+    $executionPolicies = Get-ExecutionPolicy -List
+
+    $currentUserPolicy = $executionPolicies | Where-Object { $_.Scope -eq 'CurrentUser' }
+    $processPolicy = $executionPolicies | Where-Object { $_.Scope -eq 'Process' }
+    $localMachinePolicy = $executionPolicies | Where-Object { $_.Scope -eq 'LocalMachine' }
+
+    if ($currentUserPolicy.ExecutionPolicy -ne 'Bypass') {
+        Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Bypass -Force
+    }
+    if ($processPolicy.ExecutionPolicy -ne 'Bypass') {
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+    }
+    if ($localMachinePolicy.ExecutionPolicy -ne 'Bypass') {
+        Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy Bypass -Force
+    }
+    # Continue with the rest of your script
+    Write-Output "Execution policy checked and set to Bypass where necessary."
+    # Add any additional script logic here
 }
-if ($processPolicy.ExecutionPolicy -ne 'Bypass') {
-    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-}
-if ($localMachinePolicy.ExecutionPolicy -ne 'Bypass') {
-    Set-ExecutionPolicy -Scope LocalMachine -ExecutionPolicy Bypass -Force
-}
-# Continue with the rest of your script
-Write-Output "Execution policy checked and set to Bypass where necessary."
 
 # Define paths to the scripts
 #POWERSHELL

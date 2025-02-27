@@ -5,6 +5,28 @@ $packages = @(
     "Git.Git"
 )
 
+# Function to find the path of gh.exe using find
+function Find-GhExecutable {
+    $searchPaths = @(
+        "$env:ProgramFiles\GitHub CLI",
+        "$env:ProgramFiles (x86)\GitHub CLI",
+        "$env:LOCALAPPDATA\GitHub CLI"
+    )
+
+    foreach ($path in $searchPaths) {
+        $ghPath = Get-ChildItem -Path $path -Recurse -Filter "gh.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        if ($ghPath) {
+            return $ghPath
+        }
+    }
+
+    throw "gh.exe not found in common locations. Please ensure GitHub CLI is installed."
+}
+
+# Find the gh executable path
+$ghPath = Find-GhExecutable
+
+
 function Check-Package-Availability {
     param (
         [string[]]$packages
@@ -24,7 +46,7 @@ function Check-Package-Availability {
 
 function Check-GitHubLogin {
     try {
-        $authStatus = gh auth status 2>&1
+        $authStatus = & $ghPath auth status 2>&1
 
         # Get the original output encoding
         $originalEncoding = [Console]::OutputEncoding
@@ -99,7 +121,7 @@ function Login-GitHub {
     )
 
     while ($true) {
-        $githubPAT | gh auth login --with-token
+        $githubPAT | & $ghPath auth login --with-token
 
         if ($LASTEXITCODE -eq 0) {
             Write-Output "GitHub login successful."

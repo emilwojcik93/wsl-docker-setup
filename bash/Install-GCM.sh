@@ -20,24 +20,27 @@
 # https://github.com/Microsoft/Git-Credential-Manager-for-Windows
 # -----------------------------------------------------------------------------
 
-# Function to get the manager path from the Git path
-manager_path_from_git() {
-    sed -e 's?/cmd/git.exe?/mingw64/bin/git-credential-manager.exe?' <<<"$1"
-}
-
 # Function to escape spaces in paths and remove Windows Unicode characters
 escape_spaces() {
     sed -e 's?\r??g' -e 's? ?\\ ?g' <<<"$1"
 }
 
-# Function to find the path of an executable using where.exe
-find_where() {
-    out="$(wslpath "$(where.exe "$1" 2>/dev/null)")"
-    status=$?
-    if ! $(exit $status); then
-        return $status
-    fi
-    sed -e 's/[[:space:]]*$//' <<<"$out"
+# Function to find the path of git-credential-manager.exe using find
+find_gcm() {
+    local search_paths=(
+        "$(wslpath "$(wslvar ProgramFiles)")"
+        "$(wslpath "$(wslvar LOCALAPPDATA)")"
+    )
+
+    for path in "${search_paths[@]}"; do
+        gcm_path=$(find "$path" -type f -name "git-credential-manager.exe" 2>/dev/null | head -n 1)
+        if [[ -n "$gcm_path" ]]; then
+            echo "$gcm_path"
+            return 0
+        fi
+    done
+
+    return 1
 }
 
 # Function to print information messages
@@ -45,31 +48,10 @@ info() {
     echo "$@" >/dev/stderr
 }
 
-# Function to get the Git Credential Manager path based on the Git version
-get_manager_path() {
-    git_path="$(find_where git.exe)"
-    if [[ -z "$git_path" ]]; then
-        echo "Error: Git is not installed or not found in the PATH."
-        return 1
-    fi
-
-    git_version=$("$git_path" --version | awk '{print $3}')
-    if [[ -z "$git_version" ]]; then
-        echo "Error: Unable to determine Git version."
-        return 1
-    fi
-
-    # Extract the raw version number (e.g., 2.47.1 from 2.47.1.windows.1)
-    raw_version="$(echo "$git_version" | grep -oP '^\d+\.\d+\.\d+')"
-    manager_path="$(manager_path_from_git "$git_path")"
-
-    echo "$manager_path"
-}
-
 # Main script execution
 main() {
-    echo "Running install-gcm.sh..."
-    path="$(get_manager_path)"
+    echo "Running Install-GCM.sh..."
+    path="$(find_gcm)"
     if [[ $? -ne 0 ]]; then
         echo "Failed to get Git Credential Manager path."
         return 1
@@ -89,7 +71,7 @@ main() {
 # Run the main function
 main
 if [[ $? -ne 0 ]]; then
-    echo "An error occurred during the execution of install-gcm.sh."
+    echo "An error occurred during the execution of Install-GCM.sh."
 else
-    echo "install-gcm.sh completed successfully."
+    echo "Install-GCM.sh completed successfully."
 fi
