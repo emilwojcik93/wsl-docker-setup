@@ -9,7 +9,8 @@ $executables = @(
     "git.exe",
     "gh.exe",
     "docker.exe",
-    "docker-compose.exe"
+    "docker-compose.exe",
+    "code.cmd"
 )
 
 $wingetPackageIds = @{
@@ -18,6 +19,7 @@ $wingetPackageIds = @{
     "gh.exe" = "GitHub.cli"
     "docker.exe" = "Docker.DockerCLI"
     "docker-compose.exe" = "Docker.DockerCompose"
+    "code.cmd" = "Microsoft.VisualStudioCode"
 }
 
 # Functions
@@ -314,6 +316,11 @@ function InstallOrUpdate {
         "winget.exe" {
             Write-Output "Updating WinGet to version $latestVersion..."
             InstallOrUpdate-Winget
+        }
+        "code.cmd" {
+            Write-Output "Updating Visual Studio Code to version $latestVersion..."
+            $encodedCommand = 'IAB3AGkAbgBnAGUAdAAgAGkAbgBzAHQAYQBsAGwAIAAtAC0AZgBvAHIAYwBlACAATQBpAGMAcgBvAHMAbwBmAHQALgBWAGkAcwB1AGEAbABTAHQAdQBkAGkAbwBDAG8AZABlACAALQAtAHMAYwBvAHAAZQAgAE0AYQBjAGgAaQBuAGUAIAAtAC0AbwB2AGUAcgByAGkAZABlACAAJwAvAFYARQBSAFkAUwBJAEwARQBOAFQAIAAvAFMAUAAtACAALwBNAEUAUgBHAEUAVABBAFMASwBTAD0AIgAhAHIAdQBuAGMAbwBkAGUALAAhAGQAZQBzAGsAdABvAHAAaQBjAG8AbgAsAGEAZABkAGMAbwBuAHQAZQB4AHQAbQBlAG4AdQBmAGkAbABlAHMALABhAGQAZABjAG8AbgB0AGUAeAB0AG0AZQBuAHUAZgBvAGwAZABlAHIAcwAsAGEAcwBzAG8AYwBpAGEAdABlAHcAaQB0AGgAZgBpAGwAZQBzACwAYQBkAGQAdABvAHAAYQB0AGgAIgAnACAA'
+            powershell -ExecutionPolicy Bypass -encodedCommand $encodedCommand
         }
     }
 }
