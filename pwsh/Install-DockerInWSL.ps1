@@ -76,10 +76,29 @@ function Reload-EnvVars {
     }
 }
 
+function Find-DockerExecutable {
+    $searchPaths = @(
+        "$env:ProgramFiles\Docker",
+        "$env:ProgramFiles (x86)\Docker",
+        "$env:LOCALAPPDATA\Microsoft\WinGet\Packages"
+    )
+
+    foreach ($path in $searchPaths) {
+        $dockerPath = Get-ChildItem -Path $path -Recurse -Filter "docker.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        if ($dockerPath) {
+            return $dockerPath
+        }
+    }
+
+    throw "docker.exe not found in common locations. Please ensure Docker CLI is installed."
+}
+
+$dockerPath = Find-DockerExecutable
+
 # Test if Docker CLI can access WSL Docker socket
 function Test-DockerCLI {
     Write-Output "Testing if Docker CLI can access WSL Docker socket..."
-    $dockerInfo = docker.exe info 2>&1 | Out-String
+    $dockerInfo = & "$dockerPath" info 2>&1 | Out-String
     $dockerInfo = $dockerInfo -replace "(?s)\[DEPRECATION NOTICE\].*?(?=\n\n|\z)", ""
     $dockerInfo = $dockerInfo -replace "(?s)WARNING:.*?(?=\n\n|\z)", ""
 
