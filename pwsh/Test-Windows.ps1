@@ -188,11 +188,11 @@ function InstallOrUpdate-Winget {
         try {
             if ($Force) {
                 Write-Host "Forcing update of WinGet using the Asheroto method..."
-                $updated = Update-Winget-Asheroto-Method
+                $updated = Update-Winget-Manual-Method
                 if (-not $updated) {
                     $updated = Update-Winget-MSStore-Method
                     if (-not $updated) {
-                        Update-Winget-Manual-Method
+                        Update-Winget-Asheroto-Method
                     }
                 }
             } else {
@@ -201,11 +201,11 @@ function InstallOrUpdate-Winget {
 
                 if ($null -eq $localVersion -or $null -eq $latestVersion -or ([Version]$localVersion -lt [Version]$latestVersion)) {
                     Write-Host "Updating WinGet..."
-                    $updated = Update-Winget-Asheroto-Method
+                    $updated = Update-Winget-Manual-Method
                     if (-not $updated) {
                         $updated = Update-Winget-MSStore-Method
                         if (-not $updated) {
-                            Update-Winget-Manual-Method
+                            Update-Winget-Asheroto-Method
                         }
                     }
                 } else {
