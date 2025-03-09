@@ -121,20 +121,20 @@ Expand-Archive -Path $downloadPath -DestinationPath $downloadDir -Verbose:$Verbo
 Set-Location -Path $wslDockerSetupDir -Verbose:$Verbose
 
 # Build the command to run setup.ps1 with the provided parameters
-$setupCommand = ".\setup.ps1"
-if ($DescriptionPattern) {
-    $setupCommand += " -DescriptionPattern `"$DescriptionPattern`""
+$argList = @()
+
+$PSBoundParameters.GetEnumerator() | ForEach-Object {
+    $argList += if ($_.Value -is [switch] -and $_.Value) {
+        "-$($_.Key)"
+    } elseif ($_.Value -is [array]) {
+        "-$($_.Key) $($_.Value -join ',')"
+    } elseif ($_.Value) {
+        "-$($_.Key) '$($_.Value)'"
+    }
 }
-if ($DockerCredentialWincredPath) {
-    $setupCommand += " -DockerCredentialWincredPath `"$DockerCredentialWincredPath`""
-}
-if ($SkipInitTest) {
-    $setupCommand += " -SkipInitTest"
-}
-if ($Verbose) {
-    $setupCommand += " -Verbose"
-}
+
+$setupCommand = ".\setup.ps1 $($argList -join ' ')"
 
 # Run setup.ps1 with the declared parameters
 Write-Verbose "Running setup.ps1 with the following command: $setupCommand"
-powershell.exe -NoExit -Command $setupCommand -Verbose:$Verbose
+Start-Process -FilePath "powershell.exe" -ArgumentList "-NoExit -Command $setupCommand" -Verb RunAs
