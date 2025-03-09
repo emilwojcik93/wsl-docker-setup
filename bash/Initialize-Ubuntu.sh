@@ -26,28 +26,18 @@ get_uid_gid() {
 }
 
 # Function to check if a source file exists
-check_and_copy_file() {
-    local username=$1
-    local src_file=$2
+check_and_symlink() {
+    local src_dir=$2
     local dest_dir=$3
-    local dest_file=$4
 
-    local uid_gid
-    uid_gid=$(get_uid_gid "$username")
-    local uid=$(echo "$uid_gid" | awk '{print $1}')
-    local gid=$(echo "$uid_gid" | awk '{print $2}')
-
-    if [ -f "$src_file" ]; then
-        echo "Source file $src_file exists. Copying to $dest_dir..."
-        mkdir -p "$dest_dir"
-        cp "$src_file" "$dest_dir/$dest_file"
-        chown -R "$uid:$gid" "$dest_dir"
-        chmod 700 "$dest_dir"
-        chmod 600 "$dest_dir/$dest_file"
-        echo "File copied and permissions set."
+    if [ -f "$src_dir" ]; then
+        echo "Source dir $src_dir exists."
     else
         echo "Source file $src_file does not exist."
+        mkdir -p "$src_dir"
     fi
+    echo "Creating symlink from $src_dir to $dest_dir..."
+    ln -s "$src_dir" "$dest_dir"
 }
 
 # Function to check if a command exists
@@ -221,12 +211,11 @@ main() {
     echo "Starting setup for user $username..."
     check_required_packages || return 1
     # Define the source and destination paths
-    SRC_DOCKER_CONFIG_FILE=$(wslpath "$(wslvar USERPROFILE)\.docker\config.json")
+    SRC_DOCKER_CONFIG_DIR=$(wslpath "$(wslvar USERPROFILE)\.docker")
     DST_DOCKER_CONFIG_DIR="/home/$username/.docker"
-    DST_DOCKER_CONFIG_FILE="config.json"
 
-    # Check if the source file exists and copy it to the default WSL user home
-    check_and_copy_file "$username" "$SRC_DOCKER_CONFIG_FILE" "$DST_DOCKER_CONFIG_DIR" "$DST_DOCKER_CONFIG_FILE"
+    # Create source dir if not exists and creat symlink for WSL
+    check_and_symlink "$SRC_DOCKER_CONFIG_DIR" "$DST_DOCKER_CONFIG_DIR"
     install_docker || return 1
     add_user_to_docker_group "$username" || return 1
     echo "Setup completed successfully for user $username."

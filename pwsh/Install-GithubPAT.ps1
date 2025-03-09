@@ -37,7 +37,6 @@ Write-Output "Searching for gh.exe in common locations..."
 $ghPath = Find-Executable -exeName "gh.exe"
 Write-Output "Found gh.exe at: $ghPath"
 
-
 function Check-Package-Availability {
     param (
         [string[]]$packages
@@ -82,9 +81,6 @@ function Check-GitHubLogin {
 }
 
 # Function to format a hyperlink for display in the terminal
-# This function takes a URI and an optional label, and formats it as a clickable hyperlink
-# if the terminal supports it. For Windows users not inside Windows Terminal, it falls back
-# to displaying the URI with the label in parentheses.
 function Format-Hyperlink {
     param(
       [Parameter(ValueFromPipeline = $true, Position = 0)]
@@ -95,6 +91,7 @@ function Format-Hyperlink {
       [string]$Label
     )
 
+    $e = [char]27
     if (($PSVersionTable.PSVersion.Major -lt 6 -or $IsWindows) -and -not $Env:WT_SESSION) {
       # Fallback for Windows users not inside Windows Terminal
       if ($Label) {
@@ -104,7 +101,7 @@ function Format-Hyperlink {
     }
 
     if ($Label) {
-      return "`e]8;;$Uri`e\$Label`e]8;;`e\"
+      return "$e]8;;$Uri$e\$Label$e]8;;$e\"
     }
 
     return "$Uri"
@@ -122,8 +119,11 @@ function Get-GitHubPAT {
     Write-Host "'admin:enterprise', 'admin:org', 'delete:packages', 'delete_repo', 'gist', 'notifications', 'project', 'repo', 'user', 'workflow', 'write:discussion', 'write:packages'"
     Write-Host ""
 
-    $githubPAT = Read-Host -AsSecureString "Please provide your GitHub Personal Access Token (PAT)"
-    return [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($githubPAT))
+    $githubPAT = Read-Host "Please provide your GitHub Personal Access Token (PAT) or type 'n' to skip"
+    if ($githubPAT -eq 'n' -or $githubPAT -eq 'N') {
+        return $null
+    }
+    return [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR((ConvertTo-SecureString -String $githubPAT -AsPlainText -Force)))
 }
 
 function Login-GitHub {
@@ -140,6 +140,10 @@ function Login-GitHub {
         } else {
             Write-Output "Error: GitHub login failed. Please try again or press CTRL+C to exit."
             $githubPAT = Get-GitHubPAT
+            if (-not $githubPAT) {
+                Write-Output "Skipping GitHub PAT setup."
+                return $false
+            }
         }
     }
 }
@@ -161,7 +165,11 @@ function Setup-GitHubPAT {
         if (-not $isLoggedIn) {
             Write-Output "User is not logged in to GitHub. Starting GitHub PAT setup process..."
             $githubPAT = Get-GitHubPAT
-            Login-GitHub -githubPAT $githubPAT
+            if ($githubPAT) {
+                Login-GitHub -githubPAT $githubPAT
+            } else {
+                Write-Output "Skipping GitHub PAT setup."
+            }
         } else {
             Write-Output "User is already logged in to GitHub."
         }

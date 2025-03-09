@@ -111,6 +111,62 @@ Write-Output "Searching for docker.exe in common locations..."
 $dockerPath = Find-Executable -exeName "docker.exe"
 Write-Output "Found docker.exe at: $dockerPath"
 
+Write-Output "Searching for gh.exe in common locations..."
+$ghPath = Find-Executable -exeName "gh.exe"
+Write-Output "Found gh.exe at: $ghPath"
+
+function Check-GitHubLogin {
+    try {
+        $authStatus = & $ghPath auth status 2>&1
+
+        # Get the original output encoding
+        $originalEncoding = [Console]::OutputEncoding
+        # Set the output encoding to UTF-8
+        [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+
+        # Parse the output to check the login status
+        $isLoggedIn = $false
+        $authStatus -split "`n" | ForEach-Object {
+            if ($_ -match "Logged in to github.com account" -or $_ -match "Active account: true") {
+                $isLoggedIn = $true
+            }
+        }
+
+        # Reset the output encoding to the original value
+        [Console]::OutputEncoding = $originalEncoding
+
+        return $isLoggedIn
+    } catch {
+        return $false
+    }
+}
+
+function Get-GitHubUsername {
+    $authStatus = & $ghPath auth status 2>&1
+
+    # Get the original output encoding
+    $originalEncoding = [Console]::OutputEncoding
+    # Set the output encoding to UTF-8
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+
+    # Parse the output to find the username
+    $username = $authStatus | ForEach-Object {
+        if ($_ -match "Logged in to github.com account (\S+)") {
+            return $matches[1]
+        }
+    }
+
+    # Reset the output encoding to the original value
+    [Console]::OutputEncoding = $originalEncoding
+
+    if ($username) {
+        return $username
+    } else {
+        Write-Output "Error: Failed to retrieve GitHub username."
+        exit 1
+    }
+}
+
 # Test if Docker CLI can access WSL Docker socket
 function Test-DockerCLI {
     Write-Output "Testing if Docker CLI can access WSL Docker socket..."
@@ -130,14 +186,33 @@ function Test-DockerCLI {
 # Function to restart Docker service and socket in WSL
 function Restart-DockerServiceAndSocket {
     Write-Output "Restarting Docker service and socket in WSL..."
-    wsl -u root -e bash -c "systemctl restart docker.service docker.socket"
+    wsl -d Ubuntu -u root -e bash -c "systemctl restart docker.service docker.socket"
     Start-Sleep -Seconds 5
-    $dockerServiceStatus = wsl -u root -e bash -c "systemctl is-active docker.service"
+    $dockerServiceStatus = wsl -d Ubuntu -u root -e bash -c "systemctl is-active docker.service"
     if ($dockerServiceStatus -ne "active") {
         Write-Output "Error: Failed to restart Docker service."
         throw "Failed to restart Docker service."
     }
     Write-Output "Docker service and socket restarted successfully."
+}
+
+function Login-Docker {
+    param (
+        [string]$username,
+        [string]$githubPAT
+    )
+
+    Write-Output "Logging into Docker GitHub repo 'ghcr.io'..."
+    $githubPAT | & $dockerPath login ghcr.io -u $username --password-stdin
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Output "Docker login successful."
+    } else {
+        Write-Output "Error: Docker login failed."
+        return $false
+    }
+
+    return $true
 }
 
 # Main function to setup Docker in WSL
@@ -158,10 +233,23 @@ function Setup-DockerInWSL {
         Setup-DockerHostEnv -wslIp $wslIp
         Reload-EnvVars
 
+        
         if (Test-WSLDockerSocket -wslIp $wslIp) {
             if (Test-DockerCLI) {
                 Write-Output "Docker CLI can access WSL Docker socket successfully."
-                return
+                Write-Output "Checking GitHub login status..."
+                # Check if user is logged in to GitHub
+                $isLoggedIn = Check-GitHubLogin
+                if (-not $isLoggedIn) {
+                    Write-Output "User is not logged in to GitHub. Skipping login into Docker GitHub (ghcr.io) registry..."
+                    return
+                } else {
+                    Write-Output "User is logged in to GitHub. Logging into Docker GitHub (ghcr.io) registry..."
+                    $githubPAT = & $ghPath auth token
+                    $username = Get-GitHubUsername
+                    Login-Docker -username $username -githubPAT $githubPAT
+                    return
+                }
             } else {
                 Write-Warning "Warning: Docker CLI cannot access WSL Docker socket but the socket is available, so it looks like you need to restart the PowerShell session to reload env vars."
                 return

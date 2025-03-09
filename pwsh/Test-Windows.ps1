@@ -68,20 +68,82 @@ function CheckAndAddToPath {
 }
 
 function Test-WSL {
+    # Check if WSL is installed
     if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
+        Write-Output "WSL is not installed."
         return $false
     }
+
+    # Check if Ubuntu is installed
     if (-not (Get-Command ubuntu.exe -ErrorAction SilentlyContinue)) {
+        Write-Output "Ubuntu is not installed."
         return $false
     }
-    try {
-        $wslOutput = wsl -l -q | Where {$_.Replace("`0","") -match '^Ubuntu'}
-        if ($wslOutput) {
-            return $true
+
+    # Define the registry path for WSL
+    $wslRegistryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss"
+
+    # Check if Lxss registry entry exists
+    if (-not (Test-Path $wslRegistryPath)) {
+        Write-Output "Lxss registry entry does not exist."
+        return $false
+    }
+
+    # Get the list of WSL distributions
+    $wslDistributions = Get-ChildItem -Path $wslRegistryPath
+
+    # Check if any distributions are installed
+    if ($wslDistributions.Count -eq 0) {
+        Write-Output "No WSL distributions are installed."
+        return $false
+    }
+
+    # Iterate through each distribution and check for Ubuntu
+    $ubuntuFound = $false
+    foreach ($distribution in $wslDistributions) {
+        $distributionPath = $distribution.PSPath
+        $distributionName = (Get-ItemProperty -Path $distributionPath).DistributionName
+
+        if ($distributionName -match "Ubuntu") {
+            $ubuntuFound = $true
+            $defaultUid = (Get-ItemProperty -Path $distributionPath).DefaultUid
+
+            if (-not $defaultUid) {
+                Write-Output "Default user ID is not set. Please initialize WSL."
+                Write-Output "1. Start Ubuntu WSL"
+                Write-Output "2. Set up a UNIX user with init start wizard."
+                Write-Output "(if init wizard will not launch or WSL will start as root user then, unregister and install once again Ubuntu WSL)"
+                Write-Output "3. After completing the above steps, please run this script again."
+                return $false
+            }
+            
+            if ($defaultUid -eq 0) {
+                Write-Output "Default user ID is set to 0. Please do not use root as the default user."
+                Write-Output "1. Start Ubuntu WSL"
+                Write-Output "2. Set up a UNIX user with init start wizard."
+                Write-Output "(if init wizard will not launch or WSL will start as root user then, unregister and install once again Ubuntu WSL)"
+                Write-Output "3. After completing the above steps, please run this script again."
+                return $false
+            }
+
+            Write-Verbose "Distribution: $distributionName"
+            Write-Verbose "Default User ID: $defaultUid"
+            Write-Verbose "-----------------------------"
         }
-    } catch {
+    }
+
+    if (-not $ubuntuFound) {
+        Write-Output "Ubuntu distribution is not found. This script supports Ubuntu only."
+        Write-Output "Please run the following commands to install 'Ubuntu' and set up a UNIX user:"
+        Write-Output "1. Install Ubuntu, best in PowerShell (Admin):"
+        Write-Output "   wsl --install -d Ubuntu"
+        Write-Output "  (it might require a restart)"
+        Write-Output "2. Set up a UNIX user with init start wizard"
+        Write-Output "3. After completing the above steps, please run this script again."
         return $false
     }
+
+    return $true
 }
 
 function InstallOrUpdate-Winget {
@@ -400,7 +462,11 @@ function InstallOrUpdate-DockerCredentialHelper {
             Write-Output "Successfully installed docker-credential-wincred version $latestVersion in path: `"$DockerCredentialWincredPath`"."
         }
 
+        Write-Output "Adding docker-credential-wincred as Windows Env PATH..."
         Add-Path -path (Split-Path -Parent $DockerCredentialWincredPath)
+        
+        Write-Output "Creating a symbolic link to docker-credential-wincred in WSL..."
+        wsl -u root -e bash -c "ln -s \`"`$(wslpath \`"$DockerCredentialWincredPath\`")\`" \`"/usr/bin/docker-credential-wincred\`""
 
         # Configure Docker to use wincred.exe as the credential store
         Configure-DockerCredentialHelper
@@ -419,7 +485,7 @@ function Validate-Windows {
         Show-Separator
 
         # Force run the Asheroto script to ensure winget is working properly
-        Write-Output "Forcing update of WinGet using the Asheroto method..."
+        Write-Output "Forcing update of WinGet (it might take a while)..."
         InstallOrUpdate-Winget -Force
         Show-Separator
 
@@ -457,10 +523,6 @@ function Validate-Windows {
                 exit 1
             }
         }
-        Show-Separator
-
-        # Check if WinGet is available and install/update if necessary
-        InstallOrUpdate-Winget
         Show-Separator
 
         # Check each executable

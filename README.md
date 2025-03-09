@@ -10,6 +10,8 @@ A PowerShell script for managing and automating various WSL components, includin
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
   - [Usage](#usage)
+    - [Default Execution from Internet](#default-execution-from-internet)
+      - [Examples:](#examples)
     - [Usage without git.exe](#usage-without-gitexe)
   - [Scripts Overview](#scripts-overview)
     - [Test-Windows.ps1](#test-windowsps1)
@@ -47,6 +49,88 @@ This repository contains a set of PowerShell and Bash scripts designed to automa
 
 ## Usage
 
+### Default Execution from Internet
+
+Run the main setup script from the internet:
+```ps1
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force ;; &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1)))
+```
+
+#### Examples:
+
+- Default execution without any parameters:
+> [!NOTE]
+> If it doesn't work, then try to [Set-ExecutionPolicy](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-executionpolicy?view=powershell-7.4) via PowerShell (Admin)
+   ```powershell
+   Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force; irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1 | iex
+   ```
+> [!NOTE]
+> To execute the script from the Internet with additional parameters, please run
+- With verbose parameter:
+    ```ps1
+    &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1))) -Verbose
+    ```
+
+- With the rest of available parameters:
+    ```ps1
+    &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1))) -DescriptionPattern "Example Cert Pattern" -DockerCredentialWincredPath "path\to\docker-credential-wincred.exe" -SkipInitTest -Verbose
+    ```
+
+### Usage without git.exe
+
+1. Set the execution policy to bypass for the current process:
+    ````ps1
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+    ````
+
+2. Define the download directory and the path for the zip file:
+    ````ps1
+    $downloadDir = (Join-Path -Path $env:UserProfile -ChildPath "Downloads")
+    $downloadPath = (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup.zip")
+    $wslDockerSetupDir = (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup-main")
+    ````
+
+3. Remove the existing zip file and extracted directory if they exist:
+    ````ps1
+    if (Test-Path $downloadPath) {
+        Remove-Item -Recurse -Force $downloadPath
+    }
+    if (Test-Path $wslDockerSetupDir) {
+        Remove-Item -Recurse -Force $wslDockerSetupDir
+    }
+    ````
+
+4. Download the zip file via PowerShell to the user's Downloads folder:
+    ````ps1
+    Invoke-WebRequest -Uri "https://github.com/emilwojcik93/wsl-docker-setup/archive/refs/heads/main.zip" -OutFile $downloadPath
+    ````
+
+5. Extract the zip file:
+    ````ps1
+    Expand-Archive -Path $downloadPath -DestinationPath "$downloadDir"
+    ````
+
+6. Navigate to the extracted directory and execute [setup.ps1](http://_vscodecontentref_/0):
+    ````ps1
+    cd $wslDockerSetupDir
+    powershell.exe -NoExit -File "$wslDockerSetupDir\setup.ps1" -DescriptionPattern 'Example Cert Pattern' -DockerCredentialWincredPath (Join-Path -Path $env:OneDrive -ChildPath ".example\docker-credential-wincred.exe") -SkipInitTest -Verbose
+    ````
+
+    #### Alternative single codeblock
+    
+    ````ps1
+    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+    $downloadDir = (Join-Path -Path $env:UserProfile -ChildPath "Downloads")
+    $downloadPath = (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup.zip")
+    $wslDockerSetupDir = (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup-main")
+    if (Test-Path $downloadPath) { Remove-Item -Recurse -Force $downloadPath }
+    if (Test-Path $wslDockerSetupDir) { Remove-Item -Recurse -Force $wslDockerSetupDir }
+    Invoke-WebRequest -Uri "https://github.com/emilwojcik93/wsl-docker-setup/archive/refs/heads/main.zip" -OutFile $downloadPath
+    Expand-Archive -Path $downloadPath -DestinationPath "$downloadDir"
+    cd $wslDockerSetupDir
+    powershell.exe -NoExit -File "$wslDockerSetupDir\setup.ps1" -DescriptionPattern 'Example Cert Pattern' -DockerCredentialWincredPath (Join-Path -Path $env:OneDrive -ChildPath ".example\docker-credential-wincred.exe") -SkipInitTest -Verbose
+    ````
+
 Default exectuion
 ```ps1
 & ".\setup.ps1"
@@ -56,41 +140,6 @@ Run the main setup script with the required parameters:
 ```ps1
 & ".\setup.ps1" -DescriptionPattern "CA" -DockerCredentialWincredPath "path\to\docker-credential-wincred.exe" -Verbose
 ```
-
-### Usage without git.exe
-
-1. Download the zip file via PowerShell to the user's Downloads folder:
-    ```ps1
-    $downloadDir = (Join-Path -Path $env:USERPROFILE -ChildPath "Downloads")
-    $downloadPath = (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup.zip")
-    Invoke-WebRequest -Uri "https://github.com/emilwojcik93/wsl-docker-setup/archive/refs/heads/main.zip" -OutFile $downloadPath
-    ```
-
-2. Extract the zip file:
-    ```ps1
-    Expand-Archive -Path $downloadPath -DestinationPath "$downloadDir"
-    ```
-
-3. Navigate to the extracted directory and execute `setup.ps1`:
-    ```ps1
-    cd (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup-main")
-    & ".\setup.ps1"
-    ```
-
-    #### Alternative single codeblock
-    ```ps1
-    $downloadDir = (Join-Path -Path $env:USERPROFILE -ChildPath "Downloads")
-    $downloadPath = (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup.zip")
-    Invoke-WebRequest -Uri "https://github.com/emilwojcik93/wsl-docker-setup/archive/refs/heads/main.zip" -OutFile $downloadPath
-    Expand-Archive -Path $downloadPath -DestinationPath "$downloadDir"
-    cd (Join-Path -Path $downloadDir -ChildPath "wsl-docker-setup-main")
-    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-    & ".\setup.ps1" -Verbose
-    ```
-    ### Different example of exectution
-    ```ps1
-    powershell.exe -File (Join-Path -Path $env:USERPROFILE -ChildPath "Downloads\wsl-docker-setup\setup.ps1") -DescriptionPattern 'Enterprise Root CA Subject CN Val' -DockerCredentialWincredPath (Join-Path -Path $env:UserProfile -ChildPath ".docker\docker-credential-wincred.exe") -Verbose
-    ```
 
 ## Scripts Overview
 

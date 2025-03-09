@@ -1,0 +1,65 @@
+name: Build and Release start.ps1
+
+permissions:
+  contents: write
+  actions: read
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - start.ps1
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set Version to Today's Date
+      id: extract_version
+      run: |
+        $version = (Get-Date -Format "yy.MM.dd")
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Upload start.ps1
+      uses: actions/upload-artifact@v3
+      with:
+        name: start-ps1
+        path: ./start.ps1
+
+  release:
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+    - name: Download start.ps1
+      uses: actions/download-artifact@v3
+      with:
+        name: start-ps1
+        path: ./output
+
+    - name: Set Version to Today's Date
+      id: extract_version
+      run: |
+        $version = (Get-Date -Format "yy.MM.dd")
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Create or Update GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ env.VERSION }}
+        name: "start.ps1 Release ${{ env.VERSION }}"
+        body: |
+          Release version ${{ env.VERSION }}.
+        files: |
+          ./output/start.ps1
+        overwrite: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

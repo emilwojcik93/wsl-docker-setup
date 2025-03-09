@@ -10,28 +10,33 @@ if ($Verbose) {
 }
 
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Output "This script needs to be run as Administrator. Attempting to relaunch."
+    Write-Output "Script needs to be run as Administrator. Attempting to relaunch."
     $argList = @()
 
     $PSBoundParameters.GetEnumerator() | ForEach-Object {
         $argList += if ($_.Value -is [switch] -and $_.Value) {
             "-$($_.Key)"
+        } elseif ($_.Value -is [array]) {
+            "-$($_.Key) $($_.Value -join ',')"
         } elseif ($_.Value) {
             "-$($_.Key) '$($_.Value)'"
         }
     }
-    
-    $script = if ($PSCommandPath) {
-        "& { & `"$($PSCommandPath)`" $($argList -join ' ') }"
-    } else {
-        "&([ScriptBlock]::Create((irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/refs/heads/main/setup.ps1))) $($argList -join ' ')"
-    }
-    
-    $powershellcmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
-    $processCmd = if (Get-Command wt.exe -ErrorAction SilentlyContinue) { "wt.exe" } else { $powershellcmd }
 
-    
-    Start-Process $processCmd -ArgumentList "$powershellcmd -ExecutionPolicy Bypass -NoProfile -Command `"$script`"" -Verb RunAs
+    $script = if ($PSCommandPath) {
+        "& { & `'$($PSCommandPath)`' $($argList -join ' ') }"
+    } else {
+        "&([ScriptBlock]::Create((irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1))) $($argList -join ' ')"
+    }
+
+    $powershellCmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
+    $processCmd = if (Get-Command wt.exe -ErrorAction SilentlyContinue) { "wt.exe" } else { "$powershellCmd" }
+
+    if ($processCmd -eq "wt.exe") {
+        Start-Process $processCmd -ArgumentList "$powershellCmd -ExecutionPolicy Bypass -NoProfile -Command `"$script`"" -Verb RunAs
+    } else {
+        Start-Process $processCmd -ArgumentList "-ExecutionPolicy Bypass -NoProfile -Command `"$script`"" -Verb RunAs
+    }
 
     break
 } else {
@@ -116,7 +121,7 @@ function Install-CertificatesInWSL {
 # Function to set up Ubuntu in WSL
 function Initialize-Ubuntu {
     Write-Output "Running Initialize-Ubuntu.sh in WSL..."
-    wsl -d Ubuntu --cd "$PSScriptRoot" -u root -e bash -c "$initializeUbuntuScript"
+    wsl --cd "$PSScriptRoot" -d Ubuntu -u root -e bash -c "$initializeUbuntuScript"
     if ($LASTEXITCODE -ne 0) {
         Write-Output "Error: Initialize-Ubuntu.sh failed."
         throw "Initialize-Ubuntu.sh failed."
@@ -149,7 +154,7 @@ function Install-GithubPAT {
 # Function to set up Git Credential Manager
 function Install-GCM {
     Write-Output "Running Install-GCM.sh..."
-    wsl --cd "$PSScriptRoot" -e bash -c "$installGCM"
+    wsl --cd "$PSScriptRoot" -d Ubuntu  -e bash -c "$installGCM"
     if ($LASTEXITCODE -ne 0) {
         Write-Output "Error: Install-GCM.sh failed."
         throw "Install-GCM.sh failed."
