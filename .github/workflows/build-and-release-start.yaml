@@ -60,6 +60,5 @@ jobs:
           Release version ${{ env.VERSION }}.
         files: |
           ./output/start.ps1
-        overwrite: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
