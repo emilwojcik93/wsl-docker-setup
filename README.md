@@ -53,7 +53,7 @@ This repository contains a set of PowerShell and Bash scripts designed to automa
 
 Run the main setup script from the internet:
 ```ps1
-Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force ;; &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1)))
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force ;; &([ScriptBlock]::Create((irm https://github.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1)))
 ```
 
 #### Examples:
@@ -62,18 +62,18 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force ;; &([ScriptBl
 > [!NOTE]
 > If it doesn't work, then try to [Set-ExecutionPolicy](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-executionpolicy?view=powershell-7.4) via PowerShell (Admin)
    ```powershell
-   Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force; irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1 | iex
+   Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force; irm https://github.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1 | iex
    ```
 > [!NOTE]
 > To execute the script from the Internet with additional parameters, please run
 - With verbose parameter:
     ```ps1
-    &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1))) -Verbose
+    &([ScriptBlock]::Create((irm https://github.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1))) -Verbose
     ```
 
 - With the rest of available parameters:
     ```ps1
-    &([ScriptBlock]::Create((irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1))) -DescriptionPattern "Example Cert Pattern" -DockerCredentialWincredPath "path\to\docker-credential-wincred.exe" -SkipInitTest -Verbose
+    &([ScriptBlock]::Create((irm https://github.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1))) -DescriptionPattern "Example Cert Pattern" -DockerCredentialWincredPath "path\to\docker-credential-wincred.exe" -SkipInitTest -Verbose
     ```
 
 ### Usage without git.exe

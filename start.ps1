@@ -56,7 +56,7 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
     $script = if ($PSCommandPath) {
         "& { & `'$($PSCommandPath)`' $($argList -join ' ') }"
     } else {
-        "&([ScriptBlock]::Create((irm https://raw.githubusercontent.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1))) $($argList -join ' ')"
+        "&([ScriptBlock]::Create((irm https://github.com/emilwojcik93/wsl-docker-setup/releases/latest/download/start.ps1))) $($argList -join ' ')"
     }
 
     $powershellCmd = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
